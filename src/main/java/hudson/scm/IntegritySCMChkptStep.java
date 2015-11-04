@@ -23,7 +23,7 @@ import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
 
-public class IntegritySCMLabelStep extends AbstractStepImpl
+public class IntegritySCMChkptStep extends AbstractStepImpl
 {
 	private static final Logger LOGGER = Logger.getLogger("IntegritySCM");
 	
@@ -32,6 +32,7 @@ public class IntegritySCMLabelStep extends AbstractStepImpl
 	private Secret password;
 	private String configPath;
 	private String checkpointLabel;
+	private String checkpointDesc;
 	private IntegrityConfigurable connectionSettings;
 	
 	public String getServerConfig() 
@@ -87,6 +88,17 @@ public class IntegritySCMLabelStep extends AbstractStepImpl
 		return this.checkpointLabel;
 	}
 	
+	@DataBoundSetter
+	public void setCheckpointDesc(String checkpointDesc) 
+	{
+		this.checkpointDesc = checkpointDesc;
+	}
+
+	public String getCheckpointDesc()
+	{
+		return this.checkpointDesc;
+	}	
+	
 	public IntegrityConfigurable getConnectionSettings()
 	{
 		IntegrityConfigurable desSettings = DescriptorImpl.INTEGRITY_DESCRIPTOR.getConfiguration(serverConfig);
@@ -99,7 +111,7 @@ public class IntegritySCMLabelStep extends AbstractStepImpl
 	}
 	
 	@DataBoundConstructor
-	public IntegritySCMLabelStep(String serverConfig)
+	public IntegritySCMChkptStep(String serverConfig)
 	{
 		this.serverConfig = serverConfig;		
 		IntegrityConfigurable config = getConnectionSettings();
@@ -107,31 +119,32 @@ public class IntegritySCMLabelStep extends AbstractStepImpl
 		this.password = Secret.fromString(config.getPassword());
 		this.configPath = "";
 		this.checkpointLabel = "";
+		this.checkpointDesc = "";
 		
-		LOGGER.fine("IntegritySCMLabelStep() constructed!");		
+		LOGGER.fine("IntegritySCMChkptStep() constructed!");		
 	}
 
 	@Extension(optional = true)
-	public static final class IntegritySCMLabelDescriptorImpl extends AbstractStepDescriptorImpl 
+	public static final class IntegritySCMChkptDescriptorImpl extends AbstractStepDescriptorImpl 
 	{
 
-		public IntegritySCMLabelDescriptorImpl() 
+		public IntegritySCMChkptDescriptorImpl() 
 		{
-			super(IntegritySCMLabelStepExecution.class);
+			super(IntegritySCMChkptStepExecution.class);
 			
-			LOGGER.fine("IntegritySCMLabelDescriptorImpl() invoked!");			
+			LOGGER.fine("IntegritySCMChkptDescriptorImpl() invoked!");			
 		}
 
 		@Override
 		public String getFunctionName() 
 		{
-			return "siaddprojectlabel";
+			return "sicheckpoint";
 		}
 
 		@Override
 		public String getDisplayName() 
 		{
-			return "Integrity SCM Label";
+			return "Integrity SCM Checkpoint";
 		}
 
 		/**
@@ -145,11 +158,11 @@ public class IntegritySCMLabelStep extends AbstractStepImpl
 		}
 	}
 
-	public static class IntegritySCMLabelStepExecution extends AbstractSynchronousStepExecution<Void> 
+	public static class IntegritySCMChkptStepExecution extends AbstractSynchronousStepExecution<Void> 
 	{
 		private static final long serialVersionUID = 7564942554899422192L;
 		@Inject
-		private transient IntegritySCMLabelStep step;
+		private transient IntegritySCMChkptStep step;
 		@StepContextParameter
 		private transient Run<?, ?> run;
 		@StepContextParameter
@@ -162,7 +175,7 @@ public class IntegritySCMLabelStep extends AbstractStepImpl
 		@Override
 		protected Void run() throws Exception 
 		{
-			IntegritySCMLabelNotifierStep notifier = new IntegritySCMLabelNotifierStep(step.getConnectionSettings(), step.getConfigPath(), step.getCheckpointLabel());
+			IntegritySCMChkptNotifierStep notifier = new IntegritySCMChkptNotifierStep(step.getConnectionSettings(), step.getConfigPath(), step.getCheckpointLabel(), step.getCheckpointDesc());
 			notifier.perform(run, workspace, launcher, listener);
 			return null;
 		}

@@ -16,8 +16,16 @@
 		<f:password />
 	</f:entry>
 
-	<f:entry title="Project Label" field="checkpointLabel">
-    	<f:textbox />
+	<f:entry title="Includes Filter" field="includes">
+		<f:textbox /> 
+	</f:entry>
+
+	<f:entry title="Excludes Filter" field="excludes">
+		<f:textbox />
 	</f:entry>
         
+	<f:entry title="Item ID" field="itemID">
+		<f:textbox />
+	</f:entry>
+	        
 </j:jelly>
