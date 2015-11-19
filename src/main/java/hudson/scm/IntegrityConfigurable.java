@@ -217,12 +217,38 @@ public final class IntegrityConfigurable implements Serializable
 			return ((IntegrityConfigurable)o).getHostName().equals(hostName) &&
 					((IntegrityConfigurable)o).getPort() == port && 
 					((IntegrityConfigurable)o).getUserName().equals(userName) &&
-					((IntegrityConfigurable)o).getPasswordInPlainText().equals(password.getPlainText());
+					((IntegrityConfigurable)o).getPasswordInPlainText().equals(password.getPlainText()) &&
+					((IntegrityConfigurable)o).getSecure() == secure ;
 							
 		}
 		else
 		{
 			return false;
 		}
+	}
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#hashCode()
+	 */
+	@Override
+	public int hashCode() {
+	    final int prime = 31;
+            int result = 1;
+            
+            result = prime * result
+                    + ((hostName == null) ? 0 : hostName.hashCode()) +  ((password == null) ? 0 : password.hashCode());
+
+            return result;
+	}
+	
+	@Override
+	public String toString()
+	{
+	    StringBuilder str = new StringBuilder();
+	    str.append("Name: "+name);
+	    str.append("Secure: "+secure);
+	    str.append("IPHostName: "+ipHostName);
+	    str.append("IPPort: "+ipPort);
+	    return str.toString();
 	}
 }

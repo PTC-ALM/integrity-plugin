@@ -1,4 +1,4 @@
-package hudson.scm;
+package hudson.scm.api.session;
 
 import com.mks.api.CmdRunner;
 import com.mks.api.Command;
@@ -6,6 +6,11 @@ import com.mks.api.IntegrationPoint;
 import com.mks.api.IntegrationPointFactory;
 import com.mks.api.response.APIException;
 import com.mks.api.response.Response;
+
+import hudson.scm.IntegrityConfigurable;
+import hudson.scm.IntegritySCM;
+import hudson.scm.api.ExceptionHandler;
+
 import com.mks.api.Session;
 
 import java.io.IOException;
@@ -16,10 +21,10 @@ import java.util.logging.Logger;
  * This class represents an Integration Point to a server.  
  * It also contains a Session object
  */
-public class APISession
+public class APISession implements ISession
 {
 	// Initialize our logger
-	private static final Logger LOGGER = Logger.getLogger("IntegritySCM");
+	private static final Logger LOGGER = Logger.getLogger(IntegritySCM.class.getSimpleName());
 	
 	// Store the API Version
 	public static final String VERSION = "4.13";
@@ -50,7 +55,7 @@ public class APISession
 		// Attempt to open a connection to the Integrity Server
     	try
     	{
-    		LOGGER.fine("Creating Integrity API Session...");
+    		LOGGER.info("Creating Integrity API Session for :"+ settings.getUserName() + settings.getSecure());
     		return new APISession(
     					settings.getIpHostName(),
     					settings.getIpPort(),
@@ -192,14 +197,15 @@ public class APISession
 	
 	public void refreshAPISession() throws APIException
 	{
-	    Terminate();
+	    terminate();
 	    initAPI();
 	} 
 	
 	/**
 	 * Terminate the API Session and Integration Point
 	 */
-	public void Terminate()
+	@Override
+	public void terminate()
 	{
 		boolean cmdRunnerKilled = false;
 		boolean sessionKilled = false;
@@ -329,5 +335,11 @@ public class APISession
 	public String getUserName()
 	{
 		return userName;
+	}
+
+	@Override
+	public boolean isSecure()
+	{
+	    return this.secure;
 	}
 }
