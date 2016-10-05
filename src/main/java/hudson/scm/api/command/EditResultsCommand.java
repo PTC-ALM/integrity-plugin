@@ -1,9 +1,8 @@
-// $Id: $
-// (c) Copyright 2015 by PTC Inc. All rights reserved.
-//
-// This Software is unpublished, valuable, confidential property of
-// PTC Inc. Any use or disclosure of this Software without the express
-// written permission of PTC Inc. is strictly prohibited.
+/*******************************************************************************
+ * Contributors:
+ *     PTC 2016
+ *******************************************************************************/
+
 
 package hudson.scm.api.command;
 
@@ -23,7 +22,7 @@ public class EditResultsCommand extends BasicAPICommand
     protected EditResultsCommand(final IntegrityConfigurable serverConfig)
     {
 	super(serverConfig);
-	cmd = new Command(Command.IM, EDIT_RESULT_COMMAND);
+	cmd = new Command(Command.TM, EDIT_RESULT_COMMAND);
 	
 	// Initialize defaults
 	cmd.addOption(new APIOption(IAPIOption.FORCE_CREATE));

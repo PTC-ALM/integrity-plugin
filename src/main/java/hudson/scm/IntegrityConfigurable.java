@@ -1,3 +1,7 @@
+/*******************************************************************************
+ * Contributors:
+ *     PTC 2016
+ *******************************************************************************/
 package hudson.scm;
 
 import java.io.Serializable;
@@ -269,10 +273,10 @@ public final class IntegrityConfigurable implements Serializable
   public String toString()
   {
     StringBuilder str = new StringBuilder();
-    str.append("Name: " + name);
-    str.append("Secure: " + secure);
-    str.append("IPHostName: " + ipHostName);
-    str.append("IPPort: " + ipPort);
+    str.append("Name: " + name + "   ");
+    str.append("Secure: " + secure + "   ");
+    str.append("IPHostName: " + ipHostName + "   ");
+    str.append("IPPort: " + ipPort + "   ");
     return str.toString();
   }
 }

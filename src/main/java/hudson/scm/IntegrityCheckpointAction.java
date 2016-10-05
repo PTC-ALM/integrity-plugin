@@ -1,3 +1,7 @@
+/*******************************************************************************
+ * Contributors:
+ *     PTC 2016
+ *******************************************************************************/
 package hudson.scm;
 
 import java.io.IOException;
@@ -34,6 +38,7 @@ import hudson.model.BuildListener;
 import hudson.model.Result;
 import hudson.scm.IntegritySCM.DescriptorImpl;
 import hudson.scm.api.ExceptionHandler;
+import hudson.scm.api.option.IAPIFields;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Notifier;
@@ -289,7 +294,7 @@ public class IntegrityCheckpointAction extends Notifier implements Serializable
           Response res = siProject.checkpoint(serverConf, chkptLabel);
           logger.debug(res.getCommandString() + " returned " + res.getExitCode());
           WorkItem wi = res.getWorkItem(siProject.getConfigurationPath());
-          String chkpt = wi.getResult().getField("resultant").getItem().getId();
+          String chkpt = wi.getResult().getField(IAPIFields.RESULTANT).getItem().getId();
           listener.getLogger()
               .println("Successfully checkpointed project " + siProject.getConfigurationPath()
                   + " with label '" + chkptLabel + "', new revision is " + chkpt);

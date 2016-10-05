@@ -1,13 +1,10 @@
-// $Id: $
-// (c) Copyright 2015 by PTC Inc. All rights reserved.
-//
-// This Software is unpublished, valuable, confidential property of
-// PTC Inc. Any use or disclosure of this Software without the express
-// written permission of PTC Inc. is strictly prohibited.
+/*******************************************************************************
+ * Contributors:
+ *     PTC 2016
+ *******************************************************************************/
+
 package hudson.scm;
 
-import java.io.File;
-import java.io.IOException;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.Map;
@@ -17,13 +14,8 @@ import java.util.logging.Logger;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.export.Exported;
 
-import hudson.FilePath;
-import hudson.Launcher;
-import hudson.model.Run;
-import hudson.model.TaskListener;
 import hudson.scm.IntegrityCheckpointAction.IntegrityCheckpointDescriptorImpl;
 import hudson.scm.IntegritySCM.DescriptorImpl;
-import hudson.scm.api.command.BasicAPICommand;
 import hudson.scm.browsers.IntegrityWebUI;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
@@ -44,7 +36,8 @@ public abstract class AbstractIntegritySCM extends SCM implements Serializable
   public static final int MIN_PORT_VALUE = 1;
   public static final int MAX_PORT_VALUE = 65535;
   public static final int DEFAULT_THREAD_POOL_SIZE = 5;
-  public static final SimpleDateFormat SDF = new SimpleDateFormat("MMM dd, yyyy h:mm:ss a");
+  public static final String DEFAULT_DATE_FORMAT = "MMM dd, yyyy h:mm:ss a";
+  public static final SimpleDateFormat SDF = new SimpleDateFormat(DEFAULT_DATE_FORMAT);
   protected final String ciServerURL =
       (null == Jenkins.getInstance().getRootUrl() ? "" : Jenkins.getInstance().getRootUrl());
   protected String integrityURL;

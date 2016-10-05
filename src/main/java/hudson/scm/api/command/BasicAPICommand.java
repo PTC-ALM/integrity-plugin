@@ -1,9 +1,8 @@
-// $Id: $
-// (c) Copyright 2015 by PTC Inc. All rights reserved.
-//
-// This Software is unpublished, valuable, confidential property of
-// PTC Inc. Any use or disclosure of this Software without the express
-// written permission of PTC Inc. is strictly prohibited.
+/*******************************************************************************
+ * Contributors:
+ *     PTC 2016
+ *******************************************************************************/
+
 
 package hudson.scm.api.command;
 
@@ -70,7 +69,7 @@ public abstract class BasicAPICommand implements IAPICommand
   {
     if (null == cmd)
     {
-      LOGGER.log(Level.FINE, "Integration API Command cannot be null");
+      LOGGER.log(Level.SEVERE, "Integration API Command cannot be null");
       throw new APIException("Integration API Command cannot be null");
     }
 
@@ -123,7 +122,7 @@ public abstract class BasicAPICommand implements IAPICommand
 
     try
     {
-      LOGGER.log(Level.INFO, "Borrowing Session Object from Pool :" + serverConfig.getName()
+      LOGGER.log(Level.FINEST, "Borrowing Session Object from Pool :" + serverConfig.getName()
           + ", for running API command : " + cmd.getCommandName());
 
       api = pool.borrowObject(serverConfig);
@@ -133,12 +132,14 @@ public abstract class BasicAPICommand implements IAPICommand
     {
       try
       {
-        pool.invalidateObject(serverConfig, api);
+        if (api != null)
+          pool.invalidateObject(serverConfig, api);
       } catch (Exception e1)
       {
         LOGGER.log(Level.SEVERE,
             "Failed to invalidate Session Pool Object :" + serverConfig.getName(), e1);
-        api = null;
+        if (api != null)
+          api = null;
       }
       api = null;
       LOGGER.log(Level.SEVERE,
@@ -153,12 +154,14 @@ public abstract class BasicAPICommand implements IAPICommand
     {
       try
       {
-        pool.invalidateObject(serverConfig, api);
+        if (api != null)
+          pool.invalidateObject(serverConfig, api);
       } catch (Exception e1)
       {
         LOGGER.log(Level.SEVERE,
             "Failed to invalidate Session Pool Object :" + serverConfig.getName(), e1);
-        api = null;
+        if (api != null)
+          api = null;
       }
       api = null;
       LOGGER.log(Level.SEVERE,
@@ -169,16 +172,22 @@ public abstract class BasicAPICommand implements IAPICommand
       throw new AbortException("An Integrity API Session could not be established to "
           + serverConfig.getHostName() + ":" + serverConfig.getPort() + "!  Cannot perform "
           + cmd.getCommandName() + " operation : " + e.getMessage());
+    } catch (APIException aex)
+    {
+      // Do Nothing. Rethrow
+      throw aex;
     } catch (Exception e)
     {
       try
       {
-        pool.invalidateObject(serverConfig, api);
+        if (api != null)
+          pool.invalidateObject(serverConfig, api);
       } catch (Exception e1)
       {
         LOGGER.log(Level.SEVERE,
             "Failed to invalidate Session Pool Object :" + serverConfig.getName(), e1);
-        api = null;
+        if (api != null)
+          api = null;
       }
       api = null;
       LOGGER.log(Level.SEVERE,
@@ -195,7 +204,7 @@ public abstract class BasicAPICommand implements IAPICommand
       {
         if (null != api && !runCommandWithInterim)
         {
-          LOGGER.log(Level.INFO,
+          LOGGER.log(Level.FINEST,
               "Returning session object back to pool :" + serverConfig.getName());
           pool.returnObject(serverConfig, api);
         }
@@ -261,12 +270,14 @@ public abstract class BasicAPICommand implements IAPICommand
    * @see hudson.scm.api.command.IAPICommand#terminateAPI()
    */
   @Override
-  public void terminateAPI()
+  public void terminateAPI() throws Exception
   {
     if (runCommandWithInterim && api != null)
     {
-      LOGGER.log(Level.INFO, "Terminating API Session for WITH_INTERIM command :" + api.toString());
+      LOGGER.log(Level.FINEST,
+          "Terminating API Session for WITH_INTERIM command :" + api.toString());
       api.terminate();
+      ISessionPool.getInstance().getPool().invalidateObject(serverConfig, api);
     }
   }
 }
