@@ -1,7 +1,3 @@
-/*******************************************************************************
- * Contributors:
- *     PTC 2016
- *******************************************************************************/
 package hudson.scm.api.session;
 
 import java.io.IOException;
@@ -14,7 +10,6 @@ import com.mks.api.IntegrationPoint;
 import com.mks.api.IntegrationPointFactory;
 import com.mks.api.Session;
 import com.mks.api.response.APIException;
-import com.mks.api.response.InterruptedException;
 import com.mks.api.response.Response;
 
 import hudson.scm.IntegrityConfigurable;
@@ -59,7 +54,7 @@ public class APISession implements ISession
     // Attempt to open a connection to the Integrity Server
     try
     {
-      LOGGER.fine(
+      LOGGER.info(
           "Creating Integrity API Session for :" + settings.getUserName() + settings.getSecure());
       return new APISession(settings.getIpHostName(), settings.getIpPort(), settings.getHostName(),
           settings.getPort(), settings.getUserName(), settings.getPasswordInPlainText(),
@@ -111,21 +106,7 @@ public class APISession implements ISession
     }
     // Create the Session
     session = ip.createSession(userName, password);
-    // No need to ping here as the ping validation is handled by the ISessionPool class
-    // ping();
-  }
-
-  /*
-   * (non-Javadoc)
-   * 
-   * @see hudson.scm.api.session.ISession#ping()
-   */
-  @Override
-  public void ping() throws APIException, InterruptedException
-  {
     // Test the connection to the Integrity Server
-    LOGGER.log(Level.FINE, "Pinging server :" + userName + "@" + hostName + ":" + port);
-
     Command ping = new Command("api", "ping");
     CmdRunner cmdRunner = session.createCmdRunner();
     cmdRunner.setDefaultHostname(hostName);
@@ -134,11 +115,10 @@ public class APISession implements ISession
     cmdRunner.setDefaultPassword(password);
     // Execute the connection
     Response res = cmdRunner.execute(ping);
-    LOGGER.log(Level.FINEST, res.getCommandString() + " returned exit code " + res.getExitCode());
+    LOGGER.fine(res.getCommandString() + " returned exit code " + res.getExitCode());
     // Initialize class variables
     cmdRunner.release();
-    LOGGER.log(Level.FINE,
-        "Successfully pinged connection " + userName + "@" + hostName + ":" + port);
+    LOGGER.fine("Successfully established connection " + userName + "@" + hostName + ":" + port);
   }
 
   /**
@@ -217,7 +197,6 @@ public class APISession implements ISession
   {
     terminate();
     initAPI();
-    ping();
   }
 
   /**
@@ -366,10 +345,44 @@ public class APISession implements ISession
   public String toString()
   {
     StringBuilder builder = new StringBuilder();
-    builder.append("\n Session Host :" + this.hostName + "  ");
-    builder.append("Session Port :" + this.port + " ");
-    builder.append("Session User :" + this.userName + " ");
+    builder.append("Session Host :" + this.hostName + "/n");
+    builder.append("Session Port :" + this.port + "/n");
+    builder.append("Session User :" + this.userName + "/n");
     return builder.toString();
   }
 
+  /*
+   * (non-Javadoc)
+   * 
+   * @see hudson.scm.api.session.ISession#isAlive()
+   */
+  @Override
+  public boolean isAlive()
+  {
+    CmdRunner cmdRunner = null;
+    try
+    {
+      cmdRunner = session.createCmdRunner();
+    } catch (APIException e)
+    {
+      LOGGER.log(Level.FINE, "Unable to create command Runner. Terminating session. ", e);
+      terminate();
+      return false;
+    } finally
+    {
+      if (null != cmdRunner)
+      {
+        try
+        {
+          cmdRunner.release();
+        } catch (APIException e)
+        {
+          LOGGER.log(Level.FINE, "Unable to release command Runner. Terminating session. ", e);
+          terminate();
+          return false;
+        }
+      }
+    }
+    return true;
+  }
 }

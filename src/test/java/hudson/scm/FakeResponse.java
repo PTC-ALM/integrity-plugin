@@ -1,7 +1,13 @@
-/*******************************************************************************
- * Contributors:
- *     PTC 2016
- *******************************************************************************/
+//  
+//   $Id: FakeResponse.java 1.6 2015/03/30 20:19:13IST Reid, Randall (rreid) Exp  $
+//
+//   Copyright 2011 by PTC Inc. All rights reserved.
+//
+//   This Software is unpublished, valuable, confidential property of
+//   PTC Inc.   Any use or disclosure of this Software
+//   without the express written permission of PTC Inc.
+//   is strictly prohibited.
+//
 
 package hudson.scm;
 

@@ -1,8 +1,9 @@
-/*******************************************************************************
- * Contributors:
- *     PTC 2016
- *******************************************************************************/
-
+// $Id: $
+// (c) Copyright 2015 by PTC Inc. All rights reserved.
+//
+// This Software is unpublished, valuable, confidential property of
+// PTC Inc. Any use or disclosure of this Software without the express
+// written permission of PTC Inc. is strictly prohibited.
 
 package hudson.scm.api.session;
 
@@ -15,9 +16,6 @@ import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
-
-import com.mks.api.response.APIException;
-import com.mks.api.response.InterruptedException;
 
 import hudson.AbortException;
 import hudson.scm.IntegrityConfigurable;
@@ -36,12 +34,11 @@ public class ISessionPool
   private KeyedObjectPool<IntegrityConfigurable, ISession> pool;
   // Max APIsessions in the pool, per IntegrityConfigurable. Note that this has to be higher than
   // the checkout thread count to prevent CO threads from blocking
-  private int maxTotalPerKey = 15;
+  private int maxTotalPerKey = 20;
   // Max idle APIsession objects in the pool, per IntegrityConfigurable
   private int maxIdlePerKey = 2;
   // 3 mins before idle Sessions are checked for eviction
   private long minEvictableIdleTimeMillis = 600000;
-  private GenericKeyedObjectPoolConfig config = new GenericKeyedObjectPoolConfig();
 
   private static class SingletonHolder
   {
@@ -64,16 +61,16 @@ public class ISessionPool
 
   private void startPool()
   {
-    // config.setMaxTotalPerKey(maxTotalPerKey);
-    // config.setMaxIdlePerKey(maxIdlePerKey);
+    GenericKeyedObjectPoolConfig config = new GenericKeyedObjectPoolConfig();
+    config.setMaxTotalPerKey(maxTotalPerKey);
+    config.setMaxIdlePerKey(maxIdlePerKey);
     config.setTestOnBorrow(true);
-    config.setTestOnCreate(true);
-    // config.setTestOnReturn(true);
+    config.setTestOnReturn(true);
     config.setMinEvictableIdleTimeMillis(minEvictableIdleTimeMillis);
     config.setEvictionPolicyClassName("hudson.scm.api.session.SessionPoolEvictionPolicy");
     pool =
         new GenericKeyedObjectPool<IntegrityConfigurable, ISession>(new ISessionFactory(), config);
-    LOGGER.log(Level.FINEST,
+    LOGGER.log(Level.FINE,
         "Session Pool started with configuration : MaxTotalPerConfig : " + maxTotalPerKey
             + " , MaxIdlePerKey : " + maxIdlePerKey + " , MinEvictableTimeinMillis : "
             + config.getMinEvictableIdleTimeMillis());
@@ -85,13 +82,6 @@ public class ISessionPool
   public KeyedObjectPool<IntegrityConfigurable, ISession> getPool()
   {
     return pool;
-  }
-  
-  /**
-   * @return
-   */
-  public GenericKeyedObjectPoolConfig getPoolConfig(){
-    return config;
   }
 
   /**
@@ -110,15 +100,12 @@ public class ISessionPool
     @Override
     public ISession create(IntegrityConfigurable settings) throws Exception
     {
-      LOGGER.log(Level.FINE, "Creating a new Integrity Session for the Session Pool :"
-          + settings.getConfigId() + " :: " + settings.toString());
+      LOGGER.log(Level.FINE, "Creating a new Integrity Session for the Session Pool");
       ISession api = APISession.create(settings);
       if (null == api)
       {
-        LOGGER.log(Level.SEVERE, "An Integrity API Session could not be established :"
-            + settings.getConfigId() + " :: " + settings.toString());
-        throw new AbortException("An Integrity API Session could not be established :"
-            + settings.getConfigId() + " :: " + settings.toString());
+        LOGGER.severe("An Integrity API Session could not be established!");
+        throw new AbortException("An Integrity API Session could not be established!");
       }
       return api;
     }
@@ -143,8 +130,7 @@ public class ISessionPool
     @Override
     public void destroyObject(IntegrityConfigurable key, PooledObject<ISession> p) throws Exception
     {
-      LOGGER.log(Level.FINEST, "Terminating Integrity Session Pool object : " + key.getConfigId()
-          + " :: " + key.toString());
+      LOGGER.log(Level.FINE, "Terminating Integrity Session Pool object : " + key.toString());
       p.getObject().terminate();
     }
 
@@ -157,32 +143,9 @@ public class ISessionPool
     @Override
     public boolean validateObject(IntegrityConfigurable key, PooledObject<ISession> p)
     {
-      LOGGER.log(Level.FINEST, "Validating Integrity Session Pool object : " + key.getConfigId()
-          + " :: " + key.toString());
+      LOGGER.log(Level.FINE, "Validating Integrity Session Pool object : " + key.toString());
       ISession session = p.getObject();
-      if (null != session)
-      {
-        try
-        {
-          // Sessions may custom timeout(configured on the Integrity Server) lying in the pool.
-          // Ping the pool session before any commands are executed on them.
-          session.ping();
-        } catch (InterruptedException e)
-        {
-          LOGGER.log(Level.FINEST, "Failed to ping Integrity Session Pool object : "
-              + key.getConfigId() + " :: " + key.toString(), e);
-          return false;
-        } catch (APIException e)
-        {
-          LOGGER.log(Level.FINEST, "Failed to ping Integrity Session Pool object : "
-              + key.getConfigId() + " :: " + key.toString(), e);
-          return false;
-        }
-      } else
-        return false;
-
-      return true;
+      return session != null && session.isAlive();
     }
-
   }
 }

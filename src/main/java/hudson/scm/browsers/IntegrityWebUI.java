@@ -1,7 +1,3 @@
-/*******************************************************************************
- * Contributors:
- *     PTC 2016
- *******************************************************************************/
 package hudson.scm.browsers;
 
 import java.io.IOException;
@@ -101,31 +97,6 @@ public class IntegrityWebUI extends IntegrityRepositoryBrowser
       return new URL(context, logEntry.getAnnotation());
     }
   }
-  
-  /* (non-Javadoc)
-   * @see hudson.scm.IntegrityRepositoryBrowser#getViewCPLink(hudson.scm.IntegrityChangeLogSet.IntegrityChangeLog)
-   */
-  @Override
-  public URL getViewCPLink(IntegrityChangeLog logEntry) throws IOException
-  {
-    URL context = null;
-    // Check to see if a URL has been overridden
-    if (null != url && url.length() > 0)
-    {
-      if (url.endsWith("/"))
-      {
-        context = new URL(url + "si/");
-      } else
-      {
-        context = new URL(url + "/si/");
-      }
-      return new URL(context, logEntry.getViewCP());
-    } else // Use the URL from the Change Log Set
-    {
-      context = new URL(logEntry.getParent().getIntegrityURL() + "/si/");
-      return new URL(context, logEntry.getViewCP());
-    }
-  }
 
   /**
    * The relationship of Descriptor and Browser (the describable) is akin to class and object. This
@@ -148,5 +119,4 @@ public class IntegrityWebUI extends IntegrityRepositoryBrowser
       return "Integrity CM - Web Interface";
     }
   }
-
 }
