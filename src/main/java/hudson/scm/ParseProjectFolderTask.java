@@ -1,8 +1,9 @@
-/*******************************************************************************
- * Contributors:
- *     PTC 2016
- *******************************************************************************/
-
+// $Id: $
+// (c) Copyright 2015 by PTC Inc. All rights reserved.
+//
+// This Software is unpublished, valuable, confidential property of
+// PTC Inc. Any use or disclosure of this Software without the express
+// written permission of PTC Inc. is strictly prohibited.
 
 package hudson.scm;
 
@@ -23,7 +24,6 @@ import com.mks.api.si.SIModelTypeName;
 
 import hudson.AbortException;
 import hudson.scm.IntegritySCM.DescriptorImpl;
-import hudson.scm.api.option.IAPIFields;
 
 /**
  *
@@ -57,9 +57,9 @@ public class ParseProjectFolderTask implements Callable<Map<String, String>>
   @Override
   public Map<String, String> call() throws AbortException, SQLException
   {
-    LOGGER.log(Level.FINE, Thread.currentThread().getName()
-        + " :: Parse project folder task begin for : " + wi.getField(IAPIFields.NAME).getValueAsString());
-    String entryType = (null != wi.getField(IAPIFields.TYPE) ? wi.getField(IAPIFields.TYPE).getValueAsString() : "");
+    LOGGER.log(Level.INFO, Thread.currentThread().getName()
+        + " :: Parse project folder task begin for : " + wi.getField("name").getValueAsString());
+    String entryType = (null != wi.getField("type") ? wi.getField("type").getValueAsString() : "");
 
     if (wi.getModelType().equals(SIModelTypeName.SI_SUBPROJECT))
     {
@@ -72,39 +72,37 @@ public class ParseProjectFolderTask implements Callable<Map<String, String>>
         try
         {
           // Save the configuration path for the current subproject, using the canonical path name
-          pjConfigHash.put(wi.getField(IAPIFields.NAME).getValueAsString(), wi.getId());
+          pjConfigHash.put(wi.getField("name").getValueAsString(), wi.getId());
           // Save the relative directory path for this subproject
-          String pjDir = wi.getField(IAPIFields.NAME).getValueAsString().substring(projectRoot.length());
+          String pjDir = wi.getField("name").getValueAsString().substring(projectRoot.length());
           pjDir = pjDir.substring(0, pjDir.lastIndexOf('/'));
           // Save this directory entry
           insert.clearParameters();
           insert.setShort(1, (short) 1); // Type
-          insert.setString(2, wi.getField(IAPIFields.NAME).getValueAsString()); // Name
-          LOGGER.log(Level.FINEST, Thread.currentThread().getName()
-              + " :: Parse Folder Task: Member: " + wi.getField(IAPIFields.NAME).getValueAsString());
+          insert.setString(2, wi.getField("name").getValueAsString()); // Name
+          LOGGER.log(Level.FINE, Thread.currentThread().getName()
+              + " :: Parse Folder Task: Member: " + wi.getField("name").getValueAsString());
           insert.setString(3, wi.getId()); // MemberID
-          LOGGER.log(Level.FINEST,
+          LOGGER.log(Level.FINE,
               Thread.currentThread().getName() + " :: Parse Folder Task: MemberID: " + wi.getId());
           insert.setTimestamp(4, new Timestamp(Calendar.getInstance().getTimeInMillis())); // Timestamp
           insert.setClob(5, new StringReader("")); // Description
           insert.setString(6, wi.getId()); // ConfigPath
-          LOGGER.log(Level.FINEST, Thread.currentThread().getName()
+          LOGGER.log(Level.FINE, Thread.currentThread().getName()
               + " :: Parse Folder Task: ConfigPath: " + wi.getId());
 
           String subProjectRev = "";
-          if (wi.contains(IAPIFields.MEMBER_REV))
+          if (wi.contains("memberrev"))
           {
-            subProjectRev = wi.getField(IAPIFields.MEMBER_REV).getItem().getId();
+            subProjectRev = wi.getField("memberrev").getItem().getId();
           }
           insert.setString(7, subProjectRev); // Revision
-          LOGGER.log(Level.FINEST, Thread.currentThread().getName()
+          LOGGER.log(Level.FINE, Thread.currentThread().getName()
               + " :: Parse Folder Task: Revision: " + subProjectRev);
           insert.setString(8, pjDir); // RelativeFile
-          LOGGER.log(Level.FINEST,
+          LOGGER.log(Level.FINE,
               Thread.currentThread().getName() + " :: Parse Folder Task: RelativeFile: " + pjDir);
-          LOGGER.log(Level.FINEST, "Attempting to execute query " + insert);
-          insert.setString(9, ""); // Cpid
-          insert.setShort(10, (short) 0); // Delta defaulted to "No change" for CP mode
+          LOGGER.log(Level.INFO, "Attempting to execute query " + insert);
           insert.executeUpdate();
         } finally
         {
@@ -118,8 +116,8 @@ public class ParseProjectFolderTask implements Callable<Map<String, String>>
         }
       }
     }
-    LOGGER.log(Level.FINE, Thread.currentThread().getName()
-        + " :: Parse project folder task end for : " + wi.getField(IAPIFields.NAME).getValueAsString());
+    LOGGER.log(Level.INFO, Thread.currentThread().getName()
+        + " :: Parse project folder task end for : " + wi.getField("name").getValueAsString());
     return pjConfigHash;
   }
 

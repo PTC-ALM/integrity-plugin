@@ -1,7 +1,3 @@
-/*******************************************************************************
- * Contributors:
- *     PTC 2016
- *******************************************************************************/
 package hudson.scm;
 
 import java.io.IOException;
@@ -35,7 +31,6 @@ import hudson.scm.api.ExceptionHandler;
 import hudson.scm.api.command.CommandFactory;
 import hudson.scm.api.command.IAPICommand;
 import hudson.scm.api.option.APIOption;
-import hudson.scm.api.option.IAPIFields;
 import hudson.scm.api.option.IAPIOption;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
@@ -769,7 +764,7 @@ public class IntegrityItemAction extends Notifier implements Serializable
             // Get the first item returned by the query definition
             if (wit.hasNext())
             {
-              buildItemID = wit.next().getField(IAPIFields.ID).getValueAsString();
+              buildItemID = wit.next().getField("ID").getValueAsString();
               try
               {
                 intBuildItemID = Integer.parseInt(buildItemID);

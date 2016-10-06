@@ -1,6 +1,3 @@
-/*******************************************************************************
- * Contributors: PTC 2016
- *******************************************************************************/
 package hudson.scm;
 
 import java.io.File;
@@ -12,9 +9,9 @@ import java.io.Serializable;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,12 +26,13 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-import com.mks.api.Command;
 import com.mks.api.MultiValue;
 import com.mks.api.response.APIException;
+import com.mks.api.response.Field;
 import com.mks.api.response.Response;
 import com.mks.api.response.WorkItem;
-import com.mks.api.response.WorkItemIterator;
+import com.mks.api.response.Item;
+import com.mks.api.response.ItemList;
 
 import hudson.AbortException;
 import hudson.EnvVars;
@@ -46,15 +44,12 @@ import hudson.model.Job;
 import hudson.model.ModelObject;
 import hudson.model.Run;
 import hudson.model.TaskListener;
-import hudson.scm.IntegrityCMMember.CPInfo;
-import hudson.scm.IntegrityCMMember.CPMember;
 import hudson.scm.IntegrityCheckpointAction.IntegrityCheckpointDescriptorImpl;
 import hudson.scm.api.APIUtils;
 import hudson.scm.api.ExceptionHandler;
 import hudson.scm.api.command.CommandFactory;
 import hudson.scm.api.command.IAPICommand;
 import hudson.scm.api.option.APIOption;
-import hudson.scm.api.option.IAPIFields;
 import hudson.scm.api.option.IAPIOption;
 import hudson.scm.api.session.APISession;
 import hudson.scm.api.session.ISession;
@@ -236,9 +231,9 @@ public class IntegritySCM extends AbstractIntegritySCM implements Serializable
 
     try
     {
-      projectCacheTable = DerbyUtils.getCachedTableFromRegistry("PROJECT_CACHE_TABLE",
-          ((DescriptorImpl) this.getDescriptor()).getDataSource(), jobName, configurationName,
-          run.getNumber());
+      projectCacheTable =
+          DerbyUtils.getProjectCache(((DescriptorImpl) this.getDescriptor()).getDataSource(),
+              jobName, configurationName, run.getNumber());
     } catch (SQLException sqlex)
     {
       LOGGER.severe("SQL Exception caught...");
@@ -328,8 +323,6 @@ public class IntegritySCM extends AbstractIntegritySCM implements Serializable
   /**
    * Primes the Integrity Project Member metadata information
    * 
-   * @param cpBasedMode
-   * 
    * @return response Integrity API Response
    * @throws APIException
    * @throws SQLException
@@ -347,9 +340,8 @@ public class IntegritySCM extends AbstractIntegritySCM implements Serializable
         DescriptorImpl.INTEGRITY_DESCRIPTOR.getConfiguration(serverConfig));
 
     command.addOption(new APIOption(IAPIOption.PROJECT, siProject.getConfigurationPath()));
-    MultiValue mv = APIUtils.createMultiValueField(IAPIFields.FIELD_SEPARATOR, IAPIFields.NAME,
-        IAPIFields.CONTEXT, IAPIFields.CP_ID, IAPIFields.MEMBER_REV, IAPIFields.MEMBER_TIMESTAMP,
-        IAPIFields.MEMBER_DESCRIPTION, IAPIFields.TYPE);
+    MultiValue mv = APIUtils.createMultiValueField(",", "name", "context", "cpid", "memberrev",
+        "membertimestamp", "memberdescription", "type");
     command.addOption(new APIOption(IAPIOption.FIELDS, mv));
 
     // Apply our include/exclude filters
@@ -361,16 +353,8 @@ public class IntegritySCM extends AbstractIntegritySCM implements Serializable
     // Update Derby DB with the API results
     siProject.parseProject(viewRes.getWorkItems());
 
-    try
-    {
-      // Terminate the Session associated with the view project command - with_interim session
-      command.terminateAPI();
-    } catch (Exception e)
-    {
-      // Log and ignore. This exception is thrown if there is an exception while invalidating
-      // session pool session.
-      LOGGER.log(Level.FINE, "Exception terminating interim API Session for View Project");
-    }
+    // Terminate the Session associated with the view project command - with_interim session
+    command.terminateAPI();
     return viewRes;
   }
 
@@ -391,8 +375,6 @@ public class IntegritySCM extends AbstractIntegritySCM implements Serializable
     // Provide links to the Change and Build logs for easy access from Integrity
     listener.getLogger().println("Change Log: " + ciServerURL + run.getUrl() + "changes");
     listener.getLogger().println("Build Log: " + ciServerURL + run.getUrl() + "console");
-
-    Map<CPInfo, List<CPMember>> membersInCP = new HashMap<CPInfo, List<CPMember>>();
 
     // Lets start with creating an authenticated Integrity API Session for various parts of this
     // operation...
@@ -441,27 +423,23 @@ public class IntegritySCM extends AbstractIntegritySCM implements Serializable
 
         if (null != prevProjectCache && prevProjectCache.length() > 0)
         {
-          if (CPBasedMode && !cleanCopy)
-          {
-            Set<String> projectCPIDs = new HashSet<String>();
-            Run<?, ?> lastSuccjob = job.getLastSuccessfulBuild();
-            if (lastSuccjob != null)
-            {
-              Date lastSuccBuildDate = new Date(lastSuccjob.getStartTimeInMillis());
-              projectCPIDs = siProject.projectCPDiff(
-                  DescriptorImpl.INTEGRITY_DESCRIPTOR.getConfiguration(serverConfig),
-                  lastSuccBuildDate);
-
-              IntegrityCMMember.viewCP(
-                  DescriptorImpl.INTEGRITY_DESCRIPTOR.getConfiguration(serverConfig), projectCPIDs,
-                  job.getFullName().replace("/", "_"), membersInCP);
-            }
-          }
-
+        	Set<String> membersInCP = new HashSet<String>();
+        	
+        	if(CPBasedMode && !cleanCopy)
+        	{
+            	Set<String> projectCPIDs = new HashSet<String>();
+        		Run<?, ?> lastSuccjob = job.getLastSuccessfulBuild();
+        		if(lastSuccjob != null)
+        		{
+	        		Date lastSuccBuildDate = lastSuccjob.getTime();
+	        		projectCPIDs = siProject.projectCPDiff(DescriptorImpl.INTEGRITY_DESCRIPTOR.getConfiguration(serverConfig), lastSuccBuildDate);
+	        		membersInCP = IntegrityCMMember.viewCP(DescriptorImpl.INTEGRITY_DESCRIPTOR.getConfiguration(serverConfig), projectCPIDs);
+        		}
+        	}
+		    
           // Compare the current project with the old revision state
           LOGGER.fine("Found previous project state " + prevProjectCache);
-          DerbyUtils.compareBaseline(serverConfig, prevProjectCache, projectCacheTable, membersInCP,
-              skipAuthorInfo, CPBasedMode);
+          DerbyUtils.compareBaseline(serverConfig, prevProjectCache, projectCacheTable, membersInCP, skipAuthorInfo, CPBasedMode);
         }
       } else
       {
@@ -504,18 +482,10 @@ public class IntegritySCM extends AbstractIntegritySCM implements Serializable
         }
         // Write out the change log file, which will be used by the parser to report the updates
         listener.getLogger().println("Writing build change log...");
-        if (CPBasedMode)
-        {
-          writer.println(
-              siProject.getChangeLogforCPMode(String.valueOf(run.getNumber()), membersInCP));
-        } else
-        {
-          writer
-              .println(siProject.getChangeLog(String.valueOf(run.getNumber()), projectMembersList));
-        }
+        writer.println(siProject.getChangeLog(String.valueOf(run.getNumber()), projectMembersList));
         listener.getLogger()
             .println("Change log successfully generated: " + changeLogFile.getAbsolutePath());
-        // Delete non-members in this workspace.
+        // Delete non-members in this workspace, if appropriate...
         if (deleteNonMembers)
         {
           IntegrityDeleteNonMembersTask deleteNonMembers = new IntegrityDeleteNonMembersTask(
@@ -591,15 +561,14 @@ public class IntegritySCM extends AbstractIntegritySCM implements Serializable
                   checkpointLabel));
       LOGGER.fine(res.getCommandString() + " returned " + res.getExitCode());
       WorkItem wi = res.getWorkItem(siProject.getConfigurationPath());
-      String chkpt = wi.getResult().getField(IAPIFields.RESULTANT).getItem().getId();
+      String chkpt = wi.getResult().getField("resultant").getItem().getId();
       listener.getLogger().println("Successfully executed pre-build checkpoint for project "
           + siProject.getConfigurationPath() + ", new revision is " + chkpt);
       // Update the siProject to use the new checkpoint as the basis for this build
       IAPICommand command = CommandFactory.createCommand(IAPICommand.PROJECT_INFO_COMMAND,
           DescriptorImpl.INTEGRITY_DESCRIPTOR.getConfiguration(serverConfig));
-      
-      command.addOption(new APIOption(IAPIOption.PROJECT, siProject.getProjectName()));
-      command.addOption(new APIOption(IAPIOption.PROJECT_REVISION, chkpt));
+      command.addOption(new APIOption(IAPIOption.PROJECT,
+          siProject.getConfigurationPath() + "#forceJump=#b=" + chkpt));
 
       Response infoRes = command.execute();
       siProject.initializeProject(infoRes.getWorkItems().next());
@@ -621,7 +590,6 @@ public class IntegritySCM extends AbstractIntegritySCM implements Serializable
   {
     // Log the call for now...
     LOGGER.fine("compareRemoteRevisionWith() invoked...!");
-    int changeCount = 0;
 
     // Lets get the baseline from our last build
     if (null != baseline && baseline instanceof IntegrityRevisionState)
@@ -642,43 +610,18 @@ public class IntegritySCM extends AbstractIntegritySCM implements Serializable
           String projectCacheTable = DerbyUtils.registerProjectCache(
               ((DescriptorImpl) this.getDescriptor()).getDataSource(), job.getName(),
               configurationName, 0);
+          // Re-evaluate the config path to resolve any groovy expressions...
+          initializeCMProject(job.getCharacteristicEnvVars(), configPath);
+          initializeCMProjectMembers();
 
-          initializeCMProject(job.getCharacteristicEnvVars(), projectCacheTable);
-          Map<CPInfo, List<CPMember>> membersInCP = new HashMap<CPInfo, List<CPMember>>();
-
-          if (CPBasedMode)
-          {
-            Set<String> projectCPIDs = new HashSet<String>();
-            Run<?, ?> lastSuccjob = job.getLastSuccessfulBuild();
-            if (lastSuccjob != null)
-            {
-              Date lastSuccBuildDate = new Date(lastSuccjob.getStartTimeInMillis());
-              projectCPIDs = getIntegrityProject().projectCPDiff(
-                  DescriptorImpl.INTEGRITY_DESCRIPTOR.getConfiguration(serverConfig),
-                  lastSuccBuildDate);
-
-              IntegrityCMMember.viewCP(
-                  DescriptorImpl.INTEGRITY_DESCRIPTOR.getConfiguration(serverConfig), projectCPIDs,
-                  job.getFullName().replace("/", ""), membersInCP);
-              changeCount = membersInCP.size();
-            }
-          } else
-          {
-            initializeCMProjectMembers();
-
-            // Compare this project with the old project for file mode
-            changeCount = DerbyUtils.compareBaseline(serverConfig, prevProjectCache,
-                projectCacheTable, membersInCP, skipAuthorInfo, false);
-          }
+          // Compare this project with the old project
+          int changeCount = DerbyUtils.compareBaseline(serverConfig, prevProjectCache,
+              projectCacheTable, null, skipAuthorInfo, false);
           // Finally decide whether or not we need to build again
           if (changeCount > 0)
           {
-            if (CPBasedMode)
-              listener.getLogger()
-                  .println("Detected total " + changeCount + " closed change packages.");
-            else
-              listener.getLogger()
-                  .println("Project contains changes a total of " + changeCount + " changes!");
+            listener.getLogger()
+                .println("Project contains changes a total of " + changeCount + " changes!");
             return PollingResult.SIGNIFICANT;
           } else
           {
@@ -924,7 +867,6 @@ public class IntegritySCM extends AbstractIntegritySCM implements Serializable
      * @return
      * @throws IOException
      * @throws ServletException
-     * @throws APIException 
      */
     public FormValidation doTestConnection(
         @QueryParameter("serverConfig.hostName") final String hostName,
@@ -934,7 +876,7 @@ public class IntegritySCM extends AbstractIntegritySCM implements Serializable
         @QueryParameter("serverConfig.secure") final boolean secure,
         @QueryParameter("serverConfig.ipHostName") final String ipHostName,
         @QueryParameter("serverConfig.ipPort") final int ipPort)
-            throws IOException, ServletException, APIException
+            throws IOException, ServletException
     {
       LOGGER.fine("Testing Integrity API Connection...");
       LOGGER.fine("hostName: " + hostName);
@@ -945,26 +887,11 @@ public class IntegritySCM extends AbstractIntegritySCM implements Serializable
       LOGGER.fine("ipHostName: " + ipHostName);
       LOGGER.fine("ipPort: " + ipPort);
 
-      IntegrityConfigurable ic = new IntegrityConfigurable(null, ipHostName, ipPort, hostName, port,
-          secure, userName, password);
+      IntegrityConfigurable ic = new IntegrityConfigurable("TEMP_ID", ipHostName, ipPort, hostName,
+          port, secure, userName, password);
       ISession api = APISession.create(ic);
       if (null != api)
       {
-    	Command  cmd = new Command(Command.IM, "about");
-    	Response res = api.runCommand(cmd);
-    	WorkItemIterator wit = res.getWorkItems();
-    	while(wit.hasNext())
-    	{
-    		WorkItem wi = wit.next();
-    		String version = wi.getField("version").getValueAsString();
-    		String versions[] = version.split("\\.");
-    		int majorVer = Integer.parseInt(versions[0]);
-    		int minorVer = Integer.parseInt(versions[1]);
-    		String strVerMsg = "Integrity server version: " + version;
-    		LOGGER.fine(strVerMsg);
-    		if (majorVer <= 10 && (majorVer == 10 && minorVer < 8))
-   			    LOGGER.fine("This plugin version is unsupported with " + strVerMsg);
-    	}
         api.terminate();
         return FormValidation.ok("Connection successful!");
       } else

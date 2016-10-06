@@ -1,12 +1,7 @@
-/*******************************************************************************
- * Contributors:
- *     PTC 2016
- *******************************************************************************/
 package hudson.scm.api.session;
 
 import com.mks.api.Command;
 import com.mks.api.response.APIException;
-import com.mks.api.response.InterruptedException;
 import com.mks.api.response.Response;
 
 public interface ISession
@@ -25,11 +20,8 @@ public interface ISession
   public void refreshAPISession() throws APIException;
 
   /**
-   * Ping the API session to test connectivity
-   * 
-   * @throws APIException
-   * @throws InterruptedException
+   * @return true if the Session is still active
    */
-  void ping() throws APIException, InterruptedException;
+  public boolean isAlive();
 
 }

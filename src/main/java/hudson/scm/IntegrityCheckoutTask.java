@@ -1,7 +1,3 @@
-/*******************************************************************************
- * Contributors:
- *     PTC 2016
- *******************************************************************************/
 package hudson.scm;
 
 import java.io.File;
@@ -11,7 +7,6 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Vector;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -34,8 +29,8 @@ import hudson.FilePath.FileCallable;
 import hudson.model.TaskListener;
 import hudson.remoting.VirtualChannel;
 import hudson.scm.api.ExceptionHandler;
-import hudson.scm.api.session.APISession;
 import hudson.scm.api.session.ISession;
+import hudson.scm.api.session.ISessionPool;
 import jenkins.security.Roles;
 
 public class IntegrityCheckoutTask implements FileCallable<Boolean>
@@ -149,75 +144,10 @@ public class IntegrityCheckoutTask implements FileCallable<Boolean>
   }
 
   /**
-   * Nested class to manage the APISessions for the checkout thread pool
-   */
-  private static class ThreadLocalAPISession extends ThreadLocal<ISession>
-  {
-    IntegrityConfigurable integrityConfig;
-    // Using a thread safe Vector instead of a List
-    private Vector<ISession> sessions = new Vector<ISession>();
-
-    /**
-     * Initialize our constructor with the all the information needed to create an APISession
-     * 
-     * @param ipHost Integration Point host name
-     * @param ipPortNum Integration Point port
-     * @param host Integrity Server host name
-     * @param portNum Integrity Server port
-     * @param user Integrity Server user id
-     * @param paswd Integrity Server user's password
-     * @param secure Flag to determine whether or not secure sockets are in use
-     */
-    public ThreadLocalAPISession(IntegrityConfigurable integrityConfig)
-    {
-      this.integrityConfig = integrityConfig;
-    }
-
-    /**
-     * Terminates all the active APISessions started by the thread pool
-     */
-    @Override
-    public void remove()
-    {
-      for (ISession session : sessions)
-      {
-        try
-        {
-          LOGGER.fine("Terminating threaded API Sessions...");
-          session.terminate();
-        } catch (Exception ex)
-        {
-          LOGGER.fine("Error while shuting down thread API session: " + ex.getMessage());
-        }
-      }
-      super.remove();
-    }
-
-    /**
-     * Returns an initial APISession for this thread
-     */
-    @Override
-    protected ISession initialValue()
-    {
-      ISession api = APISession.create(integrityConfig);
-      if (null != api)
-      {
-        //api.ping();
-        sessions.add(api);
-        return api;
-      } else
-      {
-        return null;
-      }
-    }
-  }
-
-  /**
    * Nested class that performs the actual checkout operation
    */
   private final class CheckOutTask implements Callable<Void>
   {
-    private final ThreadLocalAPISession apiSession;
     private final ThreadLocalOpenFileHandler openFileHandler;
     private final String configPath;
     private final String memberID;
@@ -226,13 +156,14 @@ public class IntegrityCheckoutTask implements FileCallable<Boolean>
     private final Timestamp memberTimestamp;
     private final File targetFile;
     private final boolean calculateChecksum;
+    private final IntegrityConfigurable serverConfig;
 
-    public CheckOutTask(ThreadLocalAPISession apiSession,
+    public CheckOutTask(IntegrityConfigurable serverConfig,
         ThreadLocalOpenFileHandler openFileHandler, String memberName, String configPath,
         String memberID, String memberRev, Timestamp memberTimestamp, File targetFile,
         boolean calculateChecksum)
     {
-      this.apiSession = apiSession;
+      this.serverConfig = serverConfig;
       this.openFileHandler = openFileHandler;
       this.configPath = configPath;
       this.memberID = memberID;
@@ -245,40 +176,39 @@ public class IntegrityCheckoutTask implements FileCallable<Boolean>
 
     public Void call() throws Exception
     {
-      ISession api = apiSession.get();
-      if (null != api)
-      {
-        // Check to see if we need to release the APISession to clear some file handles
-        LOGGER.fine("API open file handles: " + openFileHandler.get());
-        if (openFileHandler.get() >= CHECKOUT_TRESHOLD)
-        {
-          LOGGER.fine("Checkout threshold reached for session " + api.toString()
-              + ", refreshing API session");
-          api.refreshAPISession();
-          openFileHandler.set(1);
-        }
-        LOGGER.fine("Checkout on API thread: " + api.toString());
-        try
-        {
-          IntegrityCMMember.checkout(api, configPath, memberID, memberRev, memberTimestamp,
-              targetFile, restoreTimestamp, lineTerminator);
-        } catch (APIException aex)
-        {
-          LOGGER.severe("API Exception caught...");
-          ExceptionHandler eh = new ExceptionHandler(aex);
-          LOGGER.severe(eh.getMessage());
-          LOGGER.fine(eh.getCommand() + " returned exit code " + eh.getExitCode());
-          throw new Exception(eh.getMessage());
-        }
+      ISession api = ISessionPool.getInstance().getPool().borrowObject(serverConfig);
 
-        openFileHandler.set(openFileHandler.get() + 1);
-        if (calculateChecksum)
-        {
-          checksumHash.put(memberName, IntegrityCMMember.getMD5Checksum(targetFile));
-        }
-      } else
+      // Check to see if we need to release the APISession to clear some file handles
+      LOGGER.fine("API open file handles: " + openFileHandler.get());
+      if (openFileHandler.get() >= CHECKOUT_TRESHOLD)
       {
-        throw new Exception("Failed to create APISession!");
+        LOGGER.fine("Checkout threshold reached for session " + api.toString()
+            + ", refreshing API session");
+        api.refreshAPISession();
+        openFileHandler.set(1);
+      }
+      LOGGER.fine("Checkout on API thread: " + api.toString());
+      try
+      {
+        IntegrityCMMember.checkout(api, configPath, memberID, memberRev, memberTimestamp,
+            targetFile, restoreTimestamp, lineTerminator);
+      } catch (APIException aex)
+      {
+        LOGGER.severe("API Command Exception caught.");
+        ExceptionHandler eh = new ExceptionHandler(aex);
+        LOGGER.severe(eh.getMessage());
+        LOGGER.fine(eh.getCommand() + " returned exit code " + eh.getExitCode());
+        throw new Exception(eh.getMessage());
+      } finally
+      {
+        if (null != api)
+          ISessionPool.getInstance().getPool().returnObject(serverConfig, api);
+      }
+
+      openFileHandler.set(openFileHandler.get() + 1);
+      if (calculateChecksum)
+      {
+        checksumHash.put(memberName, IntegrityCMMember.getMD5Checksum(targetFile));
       }
       return null;
     }
@@ -311,7 +241,6 @@ public class IntegrityCheckoutTask implements FileCallable<Boolean>
     listener.getLogger().println("Checkout directory is " + workspace);
 
     final ThreadLocalOpenFileHandler openFileHandler = new ThreadLocalOpenFileHandler();
-    final ThreadLocalAPISession generateAPISession = new ThreadLocalAPISession(integrityConfig);
     final ThreadFactory threadFactory =
         new ThreadFactoryBuilder().setNameFormat("Integrity-Checkout-Task-%d").build();
     ExecutorService executor = Executors.newFixedThreadPool(checkoutThreadPoolSize, threadFactory);
@@ -353,9 +282,9 @@ public class IntegrityCheckoutTask implements FileCallable<Boolean>
         {
           LOGGER.fine("Attempting to checkout file: " + targetFile.getAbsolutePath()
               + " at revision " + memberRev);
-          coThreads.add(executor
-              .submit(new CheckOutTask(generateAPISession, openFileHandler, memberName, configPath,
-                  memberID, memberRev, memberTimestamp, targetFile, fetchChangedWorkspaceFiles)));
+          coThreads.add(executor.submit(new CheckOutTask(integrityConfig,
+              openFileHandler, memberName, configPath, memberID, memberRev, memberTimestamp,
+              targetFile, fetchChangedWorkspaceFiles)));
           fetchCount++;
         } else if (deltaFlag == 0 && fetchChangedWorkspaceFiles && checksum.length() > 0)
         {
@@ -363,25 +292,26 @@ public class IntegrityCheckoutTask implements FileCallable<Boolean>
           {
             LOGGER.fine("Attempting to restore changed workspace file: "
                 + targetFile.getAbsolutePath() + " to revision " + memberRev);
-            coThreads.add(executor.submit(new CheckOutTask(generateAPISession, openFileHandler,
-                memberName, configPath, memberID, memberRev, memberTimestamp, targetFile, false)));
+            coThreads.add(executor.submit(new CheckOutTask(integrityConfig,
+                openFileHandler, memberName, configPath, memberID, memberRev, memberTimestamp,
+                targetFile, false)));
             fetchCount++;
           }
         } else if (deltaFlag == 1)
         {
           LOGGER.fine("Attempting to get new file: " + targetFile.getAbsolutePath()
               + " at revision " + memberRev);
-          coThreads.add(executor
-              .submit(new CheckOutTask(generateAPISession, openFileHandler, memberName, configPath,
-                  memberID, memberRev, memberTimestamp, targetFile, fetchChangedWorkspaceFiles)));
+          coThreads.add(executor.submit(new CheckOutTask(integrityConfig,
+              openFileHandler, memberName, configPath, memberID, memberRev, memberTimestamp,
+              targetFile, fetchChangedWorkspaceFiles)));
           addCount++;
         } else if (deltaFlag == 2)
         {
           LOGGER.fine("Attempting to update file: " + targetFile.getAbsolutePath() + " to revision "
               + memberRev);
-          coThreads.add(executor
-              .submit(new CheckOutTask(generateAPISession, openFileHandler, memberName, configPath,
-                  memberID, memberRev, memberTimestamp, targetFile, fetchChangedWorkspaceFiles)));
+          coThreads.add(executor.submit(new CheckOutTask(integrityConfig,
+              openFileHandler, memberName, configPath, memberID, memberRev, memberTimestamp,
+              targetFile, fetchChangedWorkspaceFiles)));
           updateCount++;
         } else if (deltaFlag == 3)
         {
