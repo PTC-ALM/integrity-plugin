@@ -9,16 +9,16 @@
   
   <artifactId>integrity-plugin</artifactId>
   <name>PTC Integrity CM - Jenkins Plugin</name>
-  <description>Integrates Jenkins with PTC Integrity</description>
-  <version>2.0.1-SNAPSHOT</version>
+  <version>1.37-SNAPSHOT</version>
   <packaging>hpi</packaging>
+
   <url>http://wiki.jenkins-ci.org/display/JENKINS/PTC+Integrity+Plugin</url>
 
   <developers>
     <developer>
-	  <id>PTC_Integrity_Support</id>
-      <name>PTC Integrity Support Team</name>
-      <email>integrity_jenkins_plugin@ptc.com</email>
+	  <id>ALM_JenkinsPlugin_Support</id>
+      <name>PTC ALM Jenkins Plugin Support Team</name>
+      <email>ALM_JenkinsPlugin_Support@ptc.com</email>
     </developer>
   </developers>
 	
@@ -106,13 +106,6 @@
           <compatibleSinceVersion>1.29</compatibleSinceVersion>
         </configuration>
       </plugin>
-      <plugin>
-      	<groupId>org.apache.maven.plugins</groupId>
-      	<artifactId>maven-javadoc-plugin</artifactId>
-      	<configuration>
-        	<additionalparam>-Xdoclint:none</additionalparam>
-      	</configuration>
-    </plugin>
     </plugins>
   </build>
   

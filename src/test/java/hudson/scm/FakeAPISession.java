@@ -1,7 +1,13 @@
-/*******************************************************************************
- * Contributors:
- *     PTC 2016
- *******************************************************************************/
+//  
+//   $Id: FakeAPISession.java 1.8 2014/09/24 01:08:32IST gisraeli Exp  $
+//
+//   Copyright 2011 by PTC Inc. All rights reserved.
+//
+//   This Software is unpublished, valuable, confidential property of
+//   PTC Inc.   Any use or disclosure of this Software
+//   without the express written permission of PTC Inc.
+//   is strictly prohibited.
+//
 
 package hudson.scm;
 
@@ -11,7 +17,6 @@ import java.util.logging.Logger;
 
 import com.mks.api.Command;
 import com.mks.api.response.APIException;
-import com.mks.api.response.InterruptedException;
 import com.mks.api.response.Response;
 
 import hudson.scm.IntegrityConfigurable;
@@ -344,10 +349,10 @@ public class FakeAPISession implements ISession
 	}
 
   @Override
-  public void ping() throws APIException, InterruptedException
+  public boolean isAlive()
   {
     // TODO Auto-generated method stub
-    
+    return false;
   }
 }
 

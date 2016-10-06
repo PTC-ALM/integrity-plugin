@@ -1,7 +1,13 @@
-/*******************************************************************************
- * Contributors:
- *     PTC 2016
- *******************************************************************************/
+//  
+//   $Id: FakeCmdRunner.java 1.7 2015/05/13 05:52:21IST Reid, Randall (rreid) Exp  $
+//
+//   Copyright 2011 by PTC Inc. All rights reserved.
+//
+//   This Software is unpublished, valuable, confidential property of
+//   PTC Inc.   Any use or disclosure of this Software
+//   without the express written permission of PTC Inc.
+//   is strictly prohibited.
+//
 
 package hudson.scm;
 
